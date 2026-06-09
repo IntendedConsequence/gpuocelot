@@ -35,8 +35,11 @@ if (APPLE)
 		"/opt/homebrew/opt/bison")
 endif()
 
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+
 set(GLEW_USE_STATIC_LIBS TRUE)
-find_package(Boost COMPONENTS system filesystem REQUIRED)
+find_package(Boost COMPONENTS filesystem thread REQUIRED)
 find_package(FLEX 2.5 REQUIRED)
 find_package(BISON 2.5 REQUIRED)
 find_package(GLEW REQUIRED)
@@ -254,7 +257,6 @@ list(APPEND ${PROJECT_NAME}_DEFINITIONS GLEW_STATIC)
 set(${PROJECT_NAME}_LINK_LIBRARIES
 	GLEW::GLEW
 	hydrazine
-	Boost::system
 	Boost::filesystem
 	ZLIB::ZLIB
 	${CURSES_LIBRARIES}
