@@ -5,6 +5,7 @@ option(BUILD_TESTS "Build tests: default OFF" OFF)
 option(BUILD_TESTS_CUDA "Build CUDA tests: default ON" ON)
 option(BUILD_TOOLS "Build tool executables: default ON" ON)
 option(ENABLE_OPENGL "Build OpenGL interop support" OFF)
+option(ENABLE_LLVM "Build LLVM backend supoort" OFF)
 
 #set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
 #set(CMAKE_VISIBILITY_INLINES_HIDDEN "YES")
@@ -42,14 +43,16 @@ set(Boost_USE_MULTITHREADED ON)
 find_package(Boost COMPONENTS filesystem thread REQUIRED)
 find_package(FLEX 2.5 REQUIRED)
 find_package(BISON 2.5 REQUIRED)
-find_package(ZLIB REQUIRED)
-find_library(ZSTD_LIB NAMES zstd libzstd)
-#find_package(Curses REQUIRED)
-find_library(CURSES_LIBRARY pdcurses)
 
 if (ENABLE_OPENGL)
 find_package(GLEW REQUIRED)
 endif()
+
+if (ENABLE_LLVM)
+find_package(ZLIB REQUIRED)
+find_library(ZSTD_LIB NAMES zstd libzstd)
+#find_package(Curses REQUIRED)
+find_library(CURSES_LIBRARY pdcurses)
 
 if ("x${BUILD_LLVM}" STREQUAL "xOFF")
 find_package(LLVM REQUIRED CONFIG)
@@ -239,6 +242,7 @@ set(LLVM_LIBRARIES
 add_library(llvm INTERFACE)
 add_dependencies(llvm llvm-project)
 endif()
+endif()
 
 set(BUILD_SHARED_LIBS OFF)  # ThirdParty/res_embed option
 add_subdirectory(ThirdParty/hydrazine)
@@ -249,7 +253,6 @@ include(ResEmbed)
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${PROJECT_NAME}_DEFINITIONS)
 
 set(${PROJECT_NAME}_INCLUDE_DIRS
-	${LLVM_INCLUDE_DIRS}
 	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/cuda-fatbin-decompression
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_BINARY_DIR})
@@ -257,9 +260,6 @@ set(${PROJECT_NAME}_INCLUDE_DIRS
 set(${PROJECT_NAME}_LINK_LIBRARIES
 	hydrazine
 	Boost::filesystem
-	ZLIB::ZLIB
-	${CURSES_LIBRARIES}
-	${ZSTD_LIB}
 	${CMAKE_DL_LIBS})
 
 if (ENABLE_OPENGL)
@@ -272,16 +272,28 @@ endif()
 
 list(APPEND ${PROJECT_NAME}_LINK_LIBRARIES ws2_32)
 
+if (ENABLE_LLVM)
+list(APPEND ${PROJECT_NAME}_INCLUDE_DIRS ${LLVM_INCLUDE_DIRS})
+list(APPEND ${PROJECT_NAME}_LINK_LIBRARIES ZLIB::ZLIB ${CURSES_LIBRARIES} ${ZSTD_LIB})
+set(${PROJECT_NAME}_LIBRARY_DIRS ${LLVM_LIBRARY_DIR})
+
 if ("x${BUILD_LLVM}" STREQUAL "xON")
 list(APPEND ${PROJECT_NAME}_LINK_LIBRARIES llvm)
 endif()
 
-set(${PROJECT_NAME}_LIBRARY_DIRS ${LLVM_LIBRARY_DIR})
+list(APPEND ${PROJECT_NAME}_DEFINITIONS ENABLE_LLVM=1)
+else()
+list(APPEND ${PROJECT_NAME}_DEFINITIONS ENABLE_LLVM=0)
+endif()
+
 
 include(CTest)
 
 function(ocelot_add_tests name)
 	file(GLOB TESTS "src/${name}/test/Test*.cpp" "src/${name}/test/Test*.cu")
+	if (NOT ENABLE_LLVM)
+		list(FILTER TESTS EXCLUDE REGEX "LLVM|TestExternalFunctions")
+	endif()
 	foreach(TEST ${TESTS})
 		    get_filename_component(TEST_WE ${TEST} NAME_WE)
 		    set(TEST_NAME ${PROJECT_NAME}_${name}_${TEST_WE})
@@ -384,7 +396,7 @@ target_include_directories(${PROJECT_NAME}_cuda PRIVATE ${${PROJECT_NAME}_INCLUD
 target_link_libraries(${PROJECT_NAME}_cuda PUBLIC ${${PROJECT_NAME}_LINK_LIBRARIES})
 target_link_directories(${PROJECT_NAME}_cuda PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
 
-add_library(${PROJECT_NAME}_executive STATIC
+set(${PROJECT_NAME}_executive_sources
 	src/executive/ATIExecutableKernel.cpp
 	src/executive/ATIGPUDevice.cpp
 	src/executive/CTAContext.cpp
@@ -396,13 +408,6 @@ add_library(${PROJECT_NAME}_executive STATIC
 	src/executive/EmulatorDevice.cpp
 	src/executive/ExecutableKernel.cpp
 	src/executive/FrameInfo.cpp
-	src/executive/LLVMContext.cpp
-	src/executive/LLVMCooperativeThreadArray.cpp
-	src/executive/LLVMExecutableKernel.cpp
-	src/executive/LLVMExecutionManager.cpp
-	src/executive/LLVMFunctionCallStack.cpp
-	src/executive/LLVMWorkerThread.cpp
-	src/executive/MulticoreCPUDevice.cpp
 	src/executive/NVIDIAExecutableKernel.cpp
 	src/executive/NVIDIAGPUDevice.cpp
 	src/executive/PassThroughDevice.cpp
@@ -410,6 +415,20 @@ add_library(${PROJECT_NAME}_executive STATIC
 	src/executive/RemoteDevice.cpp
 	src/executive/RuntimeException.cpp
 	src/executive/TextureOperations.cpp)
+
+if (ENABLE_LLVM)
+list(APPEND ${PROJECT_NAME}_executive_sources
+	src/executive/LLVMContext.cpp
+	src/executive/LLVMCooperativeThreadArray.cpp
+	src/executive/LLVMExecutableKernel.cpp
+	src/executive/LLVMExecutionManager.cpp
+	src/executive/LLVMFunctionCallStack.cpp
+	src/executive/LLVMWorkerThread.cpp
+	src/executive/MulticoreCPUDevice.cpp)
+endif()
+
+add_library(${PROJECT_NAME}_executive STATIC ${${PROJECT_NAME}_executive_sources})
+
 set_property(TARGET ${PROJECT_NAME}_executive PROPERTY CXX_STANDARD 14)
 set_property(TARGET ${PROJECT_NAME}_executive PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(${PROJECT_NAME}_executive PRIVATE ${${PROJECT_NAME}_DEFINITIONS})
@@ -418,7 +437,7 @@ target_include_directories(${PROJECT_NAME}_executive PRIVATE ${${PROJECT_NAME}_I
 target_link_libraries(${PROJECT_NAME}_executive PUBLIC ${${PROJECT_NAME}_LINK_LIBRARIES})
 target_link_directories(${PROJECT_NAME}_executive PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
 
-add_library(${PROJECT_NAME}_ir STATIC
+set(${PROJECT_NAME}_ir_sources
         src/ir/ControlFlowGraph.cpp
         src/ir/Dim3.cpp
         src/ir/ExternalFunctionSet.cpp
@@ -430,11 +449,6 @@ add_library(${PROJECT_NAME}_ir STATIC
         src/ir/IRKernel.cpp
         src/ir/Instruction.cpp
         src/ir/Kernel.cpp
-        src/ir/LLVMInstruction.cpp
-        src/ir/LLVMKernel.cpp
-        src/ir/LLVMModuleManager.cpp
-        src/ir/LLVMState.cpp
-        src/ir/LLVMStatement.cpp
         src/ir/Local.cpp
         src/ir/Module.cpp
         src/ir/PTXInstruction.cpp
@@ -443,6 +457,18 @@ add_library(${PROJECT_NAME}_ir STATIC
         src/ir/PTXStatement.cpp
         src/ir/Parameter.cpp
         src/ir/Texture.cpp)
+
+if (ENABLE_LLVM)
+list(APPEND ${PROJECT_NAME}_ir_sources
+        src/ir/LLVMInstruction.cpp
+        src/ir/LLVMKernel.cpp
+        src/ir/LLVMModuleManager.cpp
+        src/ir/LLVMState.cpp
+        src/ir/LLVMStatement.cpp)
+endif()
+
+add_library(${PROJECT_NAME}_ir STATIC ${${PROJECT_NAME}_ir_sources})
+
 set_property(TARGET ${PROJECT_NAME}_ir PROPERTY CXX_STANDARD 14)
 set_property(TARGET ${PROJECT_NAME}_ir PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(${PROJECT_NAME}_ir PRIVATE ${${PROJECT_NAME}_DEFINITIONS})
@@ -534,10 +560,16 @@ target_include_directories(${PROJECT_NAME}_transforms PRIVATE ${${PROJECT_NAME}_
 target_link_libraries(${PROJECT_NAME}_transforms PUBLIC ${${PROJECT_NAME}_LINK_LIBRARIES})
 target_link_directories(${PROJECT_NAME}_transforms PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
 
-add_library(${PROJECT_NAME}_translator STATIC
+set(${PROJECT_NAME}_translator_sources
 	src/translator/PTXToILTranslator.cpp
-	src/translator/PTXToLLVMTranslator.cpp
 	src/translator/Translator.cpp)
+
+if (ENABLE_LLVM)
+list(APPEND ${PROJECT_NAME}_translator_sources src/translator/PTXToLLVMTranslator.cpp)
+endif()
+
+add_library(${PROJECT_NAME}_translator STATIC ${${PROJECT_NAME}_translator_sources})
+
 set_property(TARGET ${PROJECT_NAME}_translator PROPERTY CXX_STANDARD 14)
 set_property(TARGET ${PROJECT_NAME}_translator PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(${PROJECT_NAME}_translator PRIVATE ${${PROJECT_NAME}_DEFINITIONS})
@@ -601,14 +633,16 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_LINK_LIBRARIES})
 #)
 
 # link llvm and remove unused sections
+if (ENABLE_LLVM)
+target_link_libraries(${PROJECT_NAME} PUBLIC ${ZLIB_LIBRARIES} ${CURSES_LIBRARIES})
 if(APPLE)
 	target_link_libraries(${PROJECT_NAME} PRIVATE -Wl,-dead_strip ${LLVM_LIBRARIES})
 else()
 	target_link_libraries(${PROJECT_NAME} PRIVATE -Wl,--gc-sections -Wl,--start-group ${LLVM_LIBRARIES} -Wl,--end-group)
 endif()
+endif()
 
 target_link_directories(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
-target_link_libraries(${PROJECT_NAME} PUBLIC ${ZLIB_LIBRARIES} ${CURSES_LIBRARIES})
 target_link_options(${PROJECT_NAME} PRIVATE
     -static-libgcc
     -static-libstdc++
@@ -660,8 +694,10 @@ if(BUILD_TESTS)
 	res_embed(TARGET ${PROJECT_NAME}_executive_TestKernels NAME "TestKernels_ptx"
 		PATH ${CMAKE_CURRENT_SOURCE_DIR}/src/executive/test/TestKernels.ptx KEYWORD)
 
-	res_embed(TARGET ${PROJECT_NAME}_executive_TestLLVMKernels NAME "TestLLVMKernels_ptx"
-		PATH ${CMAKE_CURRENT_SOURCE_DIR}/src/executive/test/TestLLVMKernels.ptx KEYWORD)
+	if (ENABLE_LLVM)
+		res_embed(TARGET ${PROJECT_NAME}_executive_TestLLVMKernels NAME "TestLLVMKernels_ptx"
+			PATH ${CMAKE_CURRENT_SOURCE_DIR}/src/executive/test/TestLLVMKernels.ptx KEYWORD)
+	endif()
 
 	if(BUILD_TESTS_CUDA)
 		ocelot_add_tests(cuda)
