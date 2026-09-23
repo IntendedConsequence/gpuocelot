@@ -16,7 +16,7 @@
 // Linux system headers
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
 	#include <dlfcn.h>
-#else
+#else 
 	// TODO Add dynamic loading support on windows
 	#define dlopen(a,b) 0
 	#define dlclose(a) -1
