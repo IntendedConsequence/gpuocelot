@@ -5,6 +5,11 @@ option(BUILD_TESTS "Build tests: default OFF" OFF)
 option(BUILD_TESTS_CUDA "Build CUDA tests: default ON" ON)
 option(BUILD_TOOLS "Build tool executables: default ON" ON)
 
+#set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
+#set(CMAKE_VISIBILITY_INLINES_HIDDEN "YES")
+
+#set(VERSION_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/only_ptx_run_export.map)
+
 if (NOT APPLE AND BUILD_TESTS AND BUILD_TESTS_CUDA)
 	project(gpuocelot C CXX CUDA ASM)
 	# in order to retain the PTX code in the text executables,
