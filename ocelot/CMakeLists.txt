@@ -51,14 +51,20 @@ endif()
 if (ENABLE_LLVM)
 find_package(ZLIB REQUIRED)
 find_library(ZSTD_LIB NAMES zstd libzstd)
-#find_package(Curses REQUIRED)
-find_library(CURSES_LIBRARY pdcurses)
+if(MINGW_CROSS_BUILD_FOR_WINDOWS)
+	find_library(CURSES_LIBRARY pdcurses)
+else()
+	find_package(Curses REQUIRED)
+endif()
 
 if ("x${BUILD_LLVM}" STREQUAL "xOFF")
 find_package(LLVM REQUIRED CONFIG)
 
-#file(GLOB LLVM_LIBRARIES ${LLVM_LIBRARY_DIR}/*.a)
-file(GLOB LLVM_LIBRARIES ${LLVM_LIBRARY_DIR}/libLLVM*.a)
+if(MINGW_CROSS_BUILD_FOR_WINDOWS)
+	file(GLOB LLVM_LIBRARIES ${LLVM_LIBRARY_DIR}/libLLVM*.a)
+else()
+	file(GLOB LLVM_LIBRARIES ${LLVM_LIBRARY_DIR}/*.a)
+endif()
 else()
 include(ExternalProject)
 
@@ -270,7 +276,9 @@ else()
 list(APPEND ${PROJECT_NAME}_DEFINITIONS ENABLE_OPENGL=0)
 endif()
 
-list(APPEND ${PROJECT_NAME}_LINK_LIBRARIES ws2_32)
+if(MINGW_CROSS_BUILD_FOR_WINDOWS)
+	list(APPEND ${PROJECT_NAME}_LINK_LIBRARIES ws2_32)
+endif()
 
 if (ENABLE_LLVM)
 list(APPEND ${PROJECT_NAME}_INCLUDE_DIRS ${LLVM_INCLUDE_DIRS})
@@ -643,11 +651,13 @@ endif()
 endif()
 
 target_link_directories(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
-target_link_options(${PROJECT_NAME} PRIVATE
-    -static-libgcc
-    -static-libstdc++
-    -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic
-)
+if(MINGW_CROSS_BUILD_FOR_WINDOWS)
+	target_link_options(${PROJECT_NAME} PRIVATE
+		-static-libgcc
+		-static-libstdc++
+		-Wl,-Bstatic -lwinpthread -Wl,-Bdynamic
+	)
+endif()
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION $<IF:$<PLATFORM_ID:Darwin>,/usr/local/lib,/usr/lib>)
 install(CODE "execute_process(COMMAND ldconfig)")
 
