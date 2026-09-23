@@ -586,6 +586,15 @@ else()
 endif()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_LINK_LIBRARIES})
+#target_link_options(${PROJECT_NAME} PRIVATE
+#    "-Wl,--exclude-libs,libps5ui.a"
+#    "-Wl,--exclude-libs,libfxsdrv.a"
+#    "-Wl,--exclude-libs,libmmutilse.a"
+#)
+#target_link_options(${PROJECT_NAME} PRIVATE
+#    -Wl,--as-needed
+#    -Wl,--exclude-libs,ALL
+#)
 
 # link llvm and remove unused sections
 if(APPLE)
