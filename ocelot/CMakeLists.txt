@@ -1,28 +1,31 @@
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
-if (APPLE)
-	project(gpuocelot C CXX ASM)
-else()
-	project(gpuocelot C CXX CUDA ASM)
-endif()
-
 option(BUILD_LLVM "Use LLVM compiled from sources: default OFF" OFF)
 option(BUILD_TESTS "Build tests: default OFF" OFF)
 option(BUILD_TESTS_CUDA "Build CUDA tests: default ON" ON)
 option(BUILD_TOOLS "Build tool executables: default ON" ON)
+
+#set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
+#set(CMAKE_VISIBILITY_INLINES_HIDDEN "YES")
+
+#set(VERSION_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/only_ptx_run_export.map)
+
+if (NOT APPLE AND BUILD_TESTS AND BUILD_TESTS_CUDA)
+	project(gpuocelot C CXX CUDA ASM)
+	# in order to retain the PTX code in the text executables,
+	# the target GPU architecture has to be virtual.
+	set(CMAKE_CUDA_ARCHITECTURES 35-virtual)
+	list(APPEND CUDA_NVCC_FLAGS "-Wno-deprecated-gpu-targets -Wno-deprecated-declarations")
+	set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
+else()
+	project(gpuocelot C CXX ASM)
+endif()
 
 if ("x${CMAKE_BUILD_TYPE}" STREQUAL "x")
 set(CMAKE_BUILD_TYPE "Release")
 endif()
 
 list(APPEND CMAKE_CXX_FLAGS "-fexceptions -Wno-return-type -Wno-terminate")
-
-# in order to retain the PTX code in the text executables,
-# the target GPU architecture has to be virtual.
-set(CMAKE_CUDA_ARCHITECTURES 35-virtual)
-list(APPEND CUDA_NVCC_FLAGS "-Wno-deprecated-gpu-targets -Wno-deprecated-declarations")
-
-set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 
 if (APPLE)
 	set(CMAKE_PREFIX_PATH
@@ -32,18 +35,21 @@ if (APPLE)
 		"/opt/homebrew/opt/bison")
 endif()
 
+set(GLEW_USE_STATIC_LIBS TRUE)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 find_package(FLEX 2.5 REQUIRED)
 find_package(BISON 2.5 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(ZLIB REQUIRED)
 find_library(ZSTD_LIB NAMES zstd libzstd)
-find_package(Curses REQUIRED)
+#find_package(Curses REQUIRED)
+find_library(CURSES_LIBRARY pdcurses)
 
 if ("x${BUILD_LLVM}" STREQUAL "xOFF")
 find_package(LLVM REQUIRED CONFIG)
 
-file(GLOB LLVM_LIBRARIES ${LLVM_LIBRARY_DIR}/*.a)
+#file(GLOB LLVM_LIBRARIES ${LLVM_LIBRARY_DIR}/*.a)
+file(GLOB LLVM_LIBRARIES ${LLVM_LIBRARY_DIR}/libLLVM*.a)
 else()
 include(ExternalProject)
 
@@ -243,6 +249,8 @@ set(${PROJECT_NAME}_INCLUDE_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_BINARY_DIR})
 
+list(APPEND ${PROJECT_NAME}_DEFINITIONS GLEW_STATIC)
+
 set(${PROJECT_NAME}_LINK_LIBRARIES
 	GLEW::GLEW
 	hydrazine
@@ -252,6 +260,8 @@ set(${PROJECT_NAME}_LINK_LIBRARIES
 	${CURSES_LIBRARIES}
 	${ZSTD_LIB}
 	${CMAKE_DL_LIBS})
+
+list(APPEND ${PROJECT_NAME}_LINK_LIBRARIES ws2_32)
 
 if ("x${BUILD_LLVM}" STREQUAL "xON")
 list(APPEND ${PROJECT_NAME}_LINK_LIBRARIES llvm)
@@ -342,7 +352,7 @@ target_compile_options(${PROJECT_NAME}_cal PRIVATE PRIVATE ${${PROJECT_NAME}_CXX
 target_include_directories(${PROJECT_NAME}_cal PRIVATE ${${PROJECT_NAME}_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME}_cal PUBLIC ${${PROJECT_NAME}_LINK_LIBRARIES})
 target_link_directories(${PROJECT_NAME}_cal PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
-	
+
 add_library(${PROJECT_NAME}_cuda STATIC
 	src/cuda/CudaDriver.cpp
 	src/cuda/CudaDriverApi.cpp
@@ -571,6 +581,15 @@ else()
 endif()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_LINK_LIBRARIES})
+#target_link_options(${PROJECT_NAME} PRIVATE
+#    "-Wl,--exclude-libs,libps5ui.a"
+#    "-Wl,--exclude-libs,libfxsdrv.a"
+#    "-Wl,--exclude-libs,libmmutilse.a"
+#)
+#target_link_options(${PROJECT_NAME} PRIVATE
+#    -Wl,--as-needed
+#    -Wl,--exclude-libs,ALL
+#)
 
 # link llvm and remove unused sections
 if(APPLE)
@@ -581,6 +600,11 @@ endif()
 
 target_link_directories(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${ZLIB_LIBRARIES} ${CURSES_LIBRARIES})
+target_link_options(${PROJECT_NAME} PRIVATE
+    -static-libgcc
+    -static-libstdc++
+    -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic
+)
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION $<IF:$<PLATFORM_ID:Darwin>,/usr/local/lib,/usr/lib>)
 install(CODE "execute_process(COMMAND ldconfig)")
 
