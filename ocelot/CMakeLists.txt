@@ -7,11 +7,6 @@ option(BUILD_TOOLS "Build tool executables: default ON" ON)
 option(ENABLE_OPENGL "Build OpenGL interop support" OFF)
 option(ENABLE_LLVM "Build LLVM backend supoort" OFF)
 
-#set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
-#set(CMAKE_VISIBILITY_INLINES_HIDDEN "YES")
-
-#set(VERSION_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/only_ptx_run_export.map)
-
 if (NOT APPLE AND BUILD_TESTS AND BUILD_TESTS_CUDA)
 	project(gpuocelot C CXX CUDA ASM)
 	# in order to retain the PTX code in the text executables,
