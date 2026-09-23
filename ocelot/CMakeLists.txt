@@ -35,6 +35,7 @@ if (APPLE)
 		"/opt/homebrew/opt/bison")
 endif()
 
+set(GLEW_USE_STATIC_LIBS TRUE)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 find_package(FLEX 2.5 REQUIRED)
 find_package(BISON 2.5 REQUIRED)
@@ -245,6 +246,8 @@ set(${PROJECT_NAME}_INCLUDE_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/cuda-fatbin-decompression
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 	${CMAKE_CURRENT_BINARY_DIR})
+
+list(APPEND ${PROJECT_NAME}_DEFINITIONS GLEW_STATIC)
 
 set(${PROJECT_NAME}_LINK_LIBRARIES
 	GLEW::GLEW
