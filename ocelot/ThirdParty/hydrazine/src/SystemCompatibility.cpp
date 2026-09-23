@@ -12,19 +12,21 @@
 #include <hydrazine/SystemCompatibility.h>
 
 #if defined(__APPLE__)
-    #include <sys/types.h>
-    #include <sys/sysctl.h>
+	#include <sys/types.h>
+	#include <sys/sysctl.h>
 #elif defined(_WIN32) || defined(__MINGW32__) || defined(__MINGW64__)
-    // Windows / MinGW
-    #include <windows.h>
-    // Optional: for demangling if you really need it
-    // #include <dbghelp.h>   // UnDecorateSymbolName
+	// Windows / MinGW
+	#include <windows.h>
+	// Optional: for demangling if you really need it
+	// #include <dbghelp.h>   // UnDecorateSymbolName
 #else
-    // Linux / other Unix
-    #include <GL/glx.h>
-    #include <unistd.h>
-    #include <sys/sysinfo.h>
-    #include <cxxabi.h>
+	// Linux / other Unix
+#if ENABLE_OPENGL
+	#include <GL/glx.h>
+#endif
+	#include <unistd.h>
+	#include <sys/sysinfo.h>
+	#include <cxxabi.h>
 #endif
 
 namespace hydrazine
@@ -88,14 +90,18 @@ namespace hydrazine
 
 	bool isAnOpenGLContextAvailable()
 	{
-		#if defined(__APPLE__)
-			// TODO fill this in
-			return false;
-		#elif defined(_WIN32) || defined(__MINGW32__) || defined(__MINGW64__)
-			return wglGetCurrentContext() != nullptr;
+		#if ENABLE_OPENGL
+			#if defined(__APPLE__)
+				// TODO fill this in
+				return false;
+			#elif defined(_WIN32) || defined(__MINGW32__) || defined(__MINGW64__)
+				return wglGetCurrentContext() != nullptr;
+			#else
+				GLXContext openglContext = glXGetCurrentContext();
+				return (openglContext != 0);
+			#endif
 		#else
-			GLXContext openglContext = glXGetCurrentContext();
-			return (openglContext != 0);
+			return false;
 		#endif
 	}
 
