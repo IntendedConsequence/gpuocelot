@@ -14,7 +14,7 @@
 #include <hydrazine/debug.h>
 
 // Linux system headers
-#if __GNUC__
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
 	#include <dlfcn.h>
 #else 
 	// TODO Add dynamic loading support on windows
