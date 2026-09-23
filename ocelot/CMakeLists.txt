@@ -54,7 +54,8 @@ endif()
 if ("x${BUILD_LLVM}" STREQUAL "xOFF")
 find_package(LLVM REQUIRED CONFIG)
 
-file(GLOB LLVM_LIBRARIES ${LLVM_LIBRARY_DIR}/*.a)
+#file(GLOB LLVM_LIBRARIES ${LLVM_LIBRARY_DIR}/*.a)
+file(GLOB LLVM_LIBRARIES ${LLVM_LIBRARY_DIR}/libLLVM*.a)
 else()
 include(ExternalProject)
 
