@@ -55,6 +55,45 @@ jobs:
         with:
           name: libgpuocelot-${{ runner.os }}
           path: ocelot/build/libgpuocelot.${{ runner.os == 'Linux' && 'so' || 'dylib' }}
+  build-win:
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+    name: Windows
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+
+    - name: '🧰 Checkout'
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: 'Setup MSYS2'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ucrt64
+        update: true
+        install: >-
+          git
+          make
+        pacboy: >-
+          toolchain:p
+          cmake:p
+          ninja:p
+          boost:p
+          bison:p
+          flex:p
+
+    - name: '🚧 Configure TOOL'
+      run: |
+        cmake -S ocelot -G Ninja -B ocelot/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TOOLS=OFF -DBUILD_TESTS_CUDA=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DMINGW_CROSS_BUILD_FOR_WINDOWS=1
+    - name: '🚧 Build TOOL'
+      run: |
+        cmake --build ocelot/build
 
   release:
     needs: test
