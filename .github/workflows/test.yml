@@ -80,13 +80,13 @@ jobs:
         install: >-
           git
           make
+          bison
+          flex
         pacboy: >-
           toolchain:p
           cmake:p
           ninja:p
           boost:p
-          bison:p
-          flex:p
 
     - name: '🚧 Configure TOOL'
       run: |
