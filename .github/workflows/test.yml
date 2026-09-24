@@ -95,6 +95,10 @@ jobs:
     - name: 'Build GPUOcelot'
       run: |
         cmake --build ocelot/build
+    - uses: actions/upload-artifact@v7
+      with:
+        name: libgpuocelot-${{ runner.os }}
+        path: ocelot/build/libgpuocelot.${{ runner.os == 'Linux' && 'so' || runner.os == 'Windows' && 'dll' || 'dylib' }}
 
   release:
     needs: test
