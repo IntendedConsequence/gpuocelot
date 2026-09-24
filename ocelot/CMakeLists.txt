@@ -497,6 +497,11 @@ target_compile_definitions(${PROJECT_NAME}_parser PRIVATE ${${PROJECT_NAME}_DEFI
 target_compile_options(${PROJECT_NAME}_parser PRIVATE PRIVATE ${${PROJECT_NAME}_CXXFLAGS})
 target_include_directories(${PROJECT_NAME}_parser PRIVATE ${${PROJECT_NAME}_INCLUDE_DIRS})
 target_include_directories(${PROJECT_NAME}_parser PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+if(MSYS OR MINGW)
+target_include_directories(${PROJECT_NAME}_parser PRIVATE
+    "${CMAKE_SOURCE_DIR}/ThirdParty/flex"
+)
+endif()
 target_link_libraries(${PROJECT_NAME}_parser PUBLIC ${${PROJECT_NAME}_LINK_LIBRARIES})
 target_link_directories(${PROJECT_NAME}_parser PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
 
@@ -638,10 +643,20 @@ endif()
 
 target_link_directories(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
 if(MINGW_CROSS_BUILD_FOR_WINDOWS)
+	execute_process(
+		COMMAND "${CMAKE_CXX_COMPILER}" -print-file-name=libwinpthread.a
+		OUTPUT_VARIABLE WINPTHREAD_STATIC
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+	if(NOT EXISTS "${WINPTHREAD_STATIC}")
+		message(FATAL_ERROR "libwinpthread.a not found: ${WINPTHREAD_STATIC}")
+	endif()
 	target_link_options(${PROJECT_NAME} PRIVATE
 		-static-libgcc
 		-static-libstdc++
-		-Wl,-Bstatic -lwinpthread -Wl,-Bdynamic
+	)
+	target_link_libraries(${PROJECT_NAME} PRIVATE
+		"${WINPTHREAD_STATIC}"
 	)
 endif()
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION $<IF:$<PLATFORM_ID:Darwin>,/usr/local/lib,/usr/lib>)
