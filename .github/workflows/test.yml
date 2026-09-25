@@ -101,7 +101,7 @@ jobs:
         path: ocelot/build/libgpuocelot.${{ runner.os == 'Linux' && 'so' || runner.os == 'Windows' && 'dll' || 'dylib' }}
 
   release:
-    needs: test
+    needs: [test, build-win]
     runs-on: ubuntu-24.04
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     permissions:
