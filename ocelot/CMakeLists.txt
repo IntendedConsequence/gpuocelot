@@ -485,6 +485,11 @@ target_compile_definitions(${PROJECT_NAME}_parser PRIVATE ${${PROJECT_NAME}_DEFI
 target_compile_options(${PROJECT_NAME}_parser PRIVATE PRIVATE ${${PROJECT_NAME}_CXXFLAGS})
 target_include_directories(${PROJECT_NAME}_parser PRIVATE ${${PROJECT_NAME}_INCLUDE_DIRS})
 target_include_directories(${PROJECT_NAME}_parser PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+if(MSYS OR MINGW)
+target_include_directories(${PROJECT_NAME}_parser PRIVATE
+    "${CMAKE_SOURCE_DIR}/ThirdParty/flex"
+)
+endif()
 target_link_libraries(${PROJECT_NAME}_parser PUBLIC ${${PROJECT_NAME}_LINK_LIBRARIES})
 target_link_directories(${PROJECT_NAME}_parser PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
 
