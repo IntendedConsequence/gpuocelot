@@ -14,15 +14,19 @@
 #if __APPLE__
 	#include <sys/types.h>
 	#include <sys/sysctl.h>
-#elif __GNUC__
+#elif _WIN32
+	// Windows / MinGW
+	#include <windows.h>
+	// Optional: for demangling if you really need it
+	// #include <dbghelp.h>   // UnDecorateSymbolName
+#else
+	// Linux / other Unix
 #if ENABLE_OPENGL
 	#include <GL/glx.h>
 #endif
 	#include <unistd.h>
 	#include <sys/sysinfo.h>
 	#include <cxxabi.h>
-#else
-	#error "Unknown system/compiler (APPLE and GNUC are supported)."
 #endif
 
 namespace hydrazine
@@ -48,7 +52,11 @@ namespace hydrazine
 	        }
 	    }
 	    return count;
-	#elif __GNUC__
+	#elif _WIN32
+		SYSTEM_INFO sysinfo;
+		GetSystemInfo(&sysinfo);
+		return sysinfo.dwNumberOfProcessors;
+	#else
 		return sysconf(_SC_NPROCESSORS_ONLN);
 	#endif
 	}
@@ -70,7 +78,12 @@ namespace hydrazine
 			length = sizeof(uint64_t);
 			sysctl(mib, 2, &physical_memory, &length, NULL, 0);
 			return physical_memory;
-		#elif __GNUC__
+		#elif _WIN32
+			MEMORYSTATUSEX status;
+			status.dwLength = sizeof(status);
+			GlobalMemoryStatusEx(&status);
+			return status.ullAvailPhys;
+		#else
 			return get_avphys_pages() * getpagesize();
 		#endif
 	}
@@ -81,7 +94,9 @@ namespace hydrazine
 			#if __APPLE__
 				// TODO fill this in
 				return false;
-			#elif __GNUC__
+			#elif _WIN32
+				return wglGetCurrentContext() != nullptr;
+			#else
 				GLXContext openglContext = glXGetCurrentContext();
 				return (openglContext != 0);
 			#endif
@@ -100,7 +115,10 @@ namespace hydrazine
 		#if __APPLE__
 			// TODO fill this in
 			return string;
-		#elif __GNUC__
+		#elif _WIN32
+			// Simple stub - real demangling on Windows needs DbgHelp
+			return string;
+		#else
 			int status = 0;
 			std::string name = abi::__cxa_demangle(string.c_str(),
 				0, 0, &status);
