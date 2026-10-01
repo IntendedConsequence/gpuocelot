@@ -634,6 +634,23 @@ endif()
 endif()
 
 target_link_directories(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_LIBRARY_DIRS})
+if(MINGW_CROSS_BUILD_FOR_WINDOWS)
+	execute_process(
+		COMMAND "${CMAKE_CXX_COMPILER}" -print-file-name=libwinpthread.a
+		OUTPUT_VARIABLE WINPTHREAD_STATIC
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+	if(NOT EXISTS "${WINPTHREAD_STATIC}")
+		message(FATAL_ERROR "libwinpthread.a not found: ${WINPTHREAD_STATIC}")
+	endif()
+	target_link_options(${PROJECT_NAME} PRIVATE
+		-static-libgcc
+		-static-libstdc++
+	)
+	target_link_libraries(${PROJECT_NAME} PRIVATE
+		"${WINPTHREAD_STATIC}"
+	)
+endif()
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION $<IF:$<PLATFORM_ID:Darwin>,/usr/local/lib,/usr/lib>)
 install(CODE "execute_process(COMMAND ldconfig)")
 
