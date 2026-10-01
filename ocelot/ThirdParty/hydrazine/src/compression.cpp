@@ -9,7 +9,7 @@
 #include <hydrazine/Casts.h>
 
 // System Includes
-#if __GNUC__
+#if __unix__
 	#include <dlfcn.h>
 #else
 	// TODO Add dynamic loading support on windows
